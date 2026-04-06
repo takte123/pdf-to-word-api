@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  api:
+    build: .
+    container_name: pdf-to-word-api
+    ports:
+      - "8000:8000"
+    environment:
+      - API_KEY=${API_KEY:-dev-api-key-change-in-production}
+      - MAX_FILE_SIZE=${MAX_FILE_SIZE:-20971520}
+      - FILE_RETENTION_MINUTES=${FILE_RETENTION_MINUTES:-30}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - uploads:/app/uploads
+      - outputs:/app/outputs
+      - logs:/app/logs
+    depends_on:
+      - redis
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; httpx.get('http://localhost:8000/health').raise_for_status()"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+  redis:
+    image: redis:7-alpine
+    container_name: pdf-to-word-redis
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  uploads:
+  outputs:
+  logs:
+  redis_data:
