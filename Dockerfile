@@ -6,9 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice-core-nogui \
     fonts-liberation \
     fonts-dejavu \
-    libmagic1 \
-    && rm -rf /var/lib/apt/lists/*
-
+    
 # Set working directory
 WORKDIR /app
 
