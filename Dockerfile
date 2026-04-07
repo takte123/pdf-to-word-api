@@ -11,24 +11,25 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Set working directory
 WORKDIR /app
 
-# Create non-root user first
+# Create non-root user
 RUN useradd -m -u 1000 appuser
 
-# Create directories with appuser ownership
+# Create directories
 RUN mkdir -p uploads outputs logs && chown -R appuser:appuser /app
 
-# Copy requirements first for better caching
+# Switch to non-root user
+USER appuser
+
+# Copy requirements and install
 COPY --chown=appuser:appuser requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY --chown=appuser:appuser app/ ./app/
 
-# Switch to non-root user
-USER appuser
-
-# Expose port (Railway will override with PORT env var)
+# Expose port
 EXPOSE 8000
 
-# Run the application using PORT env variable (defaults to 8000)
-CMD uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
+# Use exec form with shell to expand PORT variable
+ENV PYTHONUNBUFFERED=1
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]
