@@ -1,8 +1,9 @@
 """
-Main FastAPI application
+Main FastAPI application - Simplified version without Redis dependencies
 """
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import (
     FastAPI,
@@ -14,11 +15,7 @@ from fastapi import (
     BackgroundTasks,
 )
 from fastapi.responses import FileResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
 from datetime import datetime
-
 
 from app.core.config import get_settings
 from app.core.logging import logger
@@ -37,21 +34,35 @@ from app.utils.file import (
 # Settings
 settings = get_settings()
 
-# Rate limiter
-limiter = Limiter(key_func=get_remote_address)
-
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler"""
-    # Startup
-    logger.info("Starting PDF to Word Converter API")
-    cleanup_service = get_cleanup_service()
-    cleanup_service.start()
+    try:
+        # Startup
+        logger.info("Starting PDF to Word Converter API")
+
+        # Ensure directories exist
+        Path(settings.uploads_dir).mkdir(parents=True, exist_ok=True)
+        Path(settings.outputs_dir).mkdir(parents=True, exist_ok=True)
+        Path(settings.logs_dir).mkdir(parents=True, exist_ok=True)
+
+        cleanup_service = get_cleanup_service()
+        cleanup_service.start()
+        logger.info("PDF to Word Converter API started successfully")
+    except Exception as e:
+        logger.error(f"Startup error: {e}")
+        raise
+
     yield
+
     # Shutdown
-    logger.info("Shutting down PDF to Word Converter API")
-    cleanup_service.stop()
+    try:
+        logger.info("Shutting down PDF to Word Converter API")
+        cleanup_service = get_cleanup_service()
+        cleanup_service.stop()
+    except Exception as e:
+        logger.error(f"Shutdown error: {e}")
 
 
 # Create FastAPI app
@@ -66,10 +77,6 @@ app = FastAPI(
 
 # Add middleware
 app.add_middleware(APIKeyMiddleware)
-
-# Add rate limiter
-app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @app.get("/")
@@ -99,7 +106,6 @@ async def health_check():
         500: {"model": ErrorResponse, "description": "Conversion failed"},
     },
 )
-@limiter.limit(settings.rate_limit)
 async def convert_pdf_to_word(
     request: Request, background_tasks: BackgroundTasks, file: UploadFile = File(...)
 ):
@@ -135,7 +141,6 @@ async def convert_pdf_to_word(
 
         # Validate file type (magic number check)
         if not validate_file_type(input_path):
-            # Clean up invalid file
             input_path.unlink(missing_ok=True)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

@@ -4,9 +4,7 @@ python-multipart==0.0.9
 pdf2docx==0.5.8
 python-magic==0.4.27
 aiofiles==23.2.1
-redis==5.0.1
 pydantic==2.6.1
 pydantic-settings==2.1.0
-slowapi==0.1.9
 httpx==0.26.0
 tenacity==8.2.3
