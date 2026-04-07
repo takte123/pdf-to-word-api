@@ -2,19 +2,18 @@
 Main FastAPI application - Minimal version for debugging
 """
 
-from fastapi import (
-    FastAPI,
-    File,
-    UploadFile,
-    HTTPException,
-    status,
-    Request,
-    BackgroundTasks,
-)
-from fastapi.responses import FileResponse
-from datetime import datetime
-from pathlib import Path
 import os
+import sys
+from pathlib import Path
+from datetime import datetime
+
+# Print startup info to stderr for debugging
+print("=== STARTING APPLICATION ===", file=sys.stderr)
+print(f"PORT env: {os.getenv('PORT')}", file=sys.stderr)
+print(f"Current dir: {os.getcwd()}", file=sys.stderr)
+print(f"Python path: {sys.path}", file=sys.stderr)
+
+from fastapi import FastAPI
 
 
 # Simple in-memory settings
@@ -38,10 +37,16 @@ app = FastAPI(
     redoc_url="/redoc",
 )
 
+print("=== FASTAPI APP CREATED ===", file=sys.stderr)
+
 # Ensure directories exist on module load
-Path(settings.uploads_dir).mkdir(parents=True, exist_ok=True)
-Path(settings.outputs_dir).mkdir(parents=True, exist_ok=True)
-Path(settings.logs_dir).mkdir(parents=True, exist_ok=True)
+try:
+    Path(settings.uploads_dir).mkdir(parents=True, exist_ok=True)
+    Path(settings.outputs_dir).mkdir(parents=True, exist_ok=True)
+    Path(settings.logs_dir).mkdir(parents=True, exist_ok=True)
+    print("=== DIRECTORIES CREATED ===", file=sys.stderr)
+except Exception as e:
+    print(f"=== DIRECTORY ERROR: {e} ===", file=sys.stderr)
 
 
 @app.get("/")
@@ -65,3 +70,6 @@ async def health_check():
 async def test():
     """Simple test endpoint"""
     return {"test": "ok", "port": os.getenv("PORT", "8000")}
+
+
+print("=== ROUTES REGISTERED ===", file=sys.stderr)

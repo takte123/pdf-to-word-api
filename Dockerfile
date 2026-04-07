@@ -1,8 +1,5 @@
 FROM python:3.11-slim-bookworm
 
-# Cache buster - change this to force rebuild
-ARG CACHE_BUST=2
-
 # Install system dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libreoffice-writer \
@@ -34,5 +31,6 @@ USER appuser
 # Expose port
 EXPOSE 8000
 
-# Run the application
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Use shell to expand PORT env variable
+ENV PYTHONUNBUFFERED=1
+CMD exec python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}
