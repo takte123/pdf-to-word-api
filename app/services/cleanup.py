@@ -2,7 +2,8 @@
 File cleanup service
 """
 
-import asyncio
+import threading
+import time
 from pathlib import Path
 from datetime import datetime, timedelta
 from typing import Set
@@ -17,21 +18,22 @@ class FileCleanupService:
     def __init__(self):
         self.settings = get_settings()
         self.running = False
-        self._task: asyncio.Task | None = None
+        self._thread: threading.Thread | None = None
         self._protected_files: Set[str] = set()
 
     def start(self):
         """Start the cleanup service"""
         if not self.running:
             self.running = True
-            self._task = asyncio.create_task(self._cleanup_loop())
+            self._thread = threading.Thread(target=self._cleanup_loop, daemon=True)
+            self._thread.start()
             logger.info("File cleanup service started")
 
     def stop(self):
         """Stop the cleanup service"""
         self.running = False
-        if self._task:
-            self._task.cancel()
+        if self._thread:
+            self._thread.join(timeout=5)
             logger.info("File cleanup service stopped")
 
     def protect_file(self, file_path: str):
@@ -42,18 +44,18 @@ class FileCleanupService:
         """Remove file protection"""
         self._protected_files.discard(file_path)
 
-    async def _cleanup_loop(self):
+    def _cleanup_loop(self):
         """Main cleanup loop"""
         while self.running:
             try:
-                await self._cleanup_old_files()
+                self._cleanup_old_files()
             except Exception as e:
                 logger.error(f"Cleanup error: {e}")
 
             # Run every 5 minutes
-            await asyncio.sleep(300)
+            time.sleep(300)
 
-    async def _cleanup_old_files(self):
+    def _cleanup_old_files(self):
         """Delete files older than retention period"""
         retention = timedelta(minutes=self.settings.file_retention_minutes)
         cutoff_time = datetime.now() - retention
